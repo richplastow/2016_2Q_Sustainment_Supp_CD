@@ -4,6 +4,8 @@ node_modules/*
 *.log
 .~lock*
 
+scormgen-swf~tmp*
+
 **/Working/**/archive
 *.wav
 *.psd
