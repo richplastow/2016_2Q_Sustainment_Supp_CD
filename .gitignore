@@ -1,0 +1,12 @@
+.DS_Store
+Thumbs.db
+node_modules/*
+*.log
+.~lock*
+
+**/Working/**/archive
+*.wav
+*.psd
+*.tif
+*.max
+* Report.txt
