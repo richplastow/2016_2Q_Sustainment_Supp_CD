@@ -1,4 +1,4 @@
-//// scormgen-swf v0.0.5
+//// scormgen-swf v0.0.6
 //// ===================
 
 //// Usage:
@@ -5636,7 +5636,8 @@ chain.push(function deleteZeroByteZip () {
 
 
 chain.push(function complete () {
-  log('Zipped to ' + (zipSize / 1000000.0) + ' MB');
+  var color = 2000000 < zipSize ? '\033[31m' : '';
+  log('Zipped to ' + color + (zipSize / 1000000.0) + ' MB\033[0m');
 });
 
 
