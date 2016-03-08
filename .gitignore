@@ -1,14 +1,15 @@
 .DS_Store
 Thumbs.db
-node_modules/*
 *.log
 .~lock*
-
 scormgen-swf~tmp*
 
-**/Working/**/archive
+zZz
+Working FLAs/**/archive
 *.wav
 *.psd
-*.tif
 *.max
 * Report.txt
+
+# comment-out this line when ready to sign-off a ZIP:
+SCORM Package
