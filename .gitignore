@@ -13,3 +13,4 @@ Working FLAs/**/archive
 
 # comment-out this line when ready to sign-off a ZIP:
 SCORM Package
+!SCORM Package/.gitkeep

@@ -1,4 +1,4 @@
-//// scormgen-swf v0.0.8
+//// scormgen-swf v0.0.9
 //// ===================
 
 //// Usage:
@@ -26,6 +26,7 @@ var
   , swfToTitle = {}
   , uuids      = [] // one for each swf
   , reports    = []
+  , reportData = {}
   , tmp = path.resolve( __dirname, 
       'scormgen-swf~tmp'+(Math.random()+'00000000').substr(2,8) )
   , SCORMPackagePath = path.resolve(__dirname, '..', 'SCORM Package')
@@ -59,6 +60,7 @@ function err (e) {
       + e.message + '\033[0m');
   }
   rmrf(tmp); // recursively delete the temporary directory
+  process.exit(step-1); // in bash, `$ echo $?` will reveal the exit code
 }
 
 function log () {
@@ -146,48 +148,34 @@ function getTimeStamp() {
 }
 
 
+function parseReport(report, buffer) {
+  var out = []
+    , raw = buffer.toString('utf-8')
+    , pos = raw.indexOf('\n\nBitmap ')
+    , lines
+    , matches
+  ;
+  if (0 > pos) return err( new Error('‘' + report + '’ has no ‘Bitmap’ section') );
+  lines = raw.substr(pos+2).split('\n');
+  lines.shift(); // remove first line, "Bitmap  Compressed  Original  Compression"
+  if (! /^-+    -+    -+    -+$/.test(lines.shift()) ) return err(
+    new Error('‘' + report + '’ has an unexpected text after ‘Bitmap’')
+  ); // remove second line, "-------------    ------    -----    -------------"
+  lines.forEach( function (line,i) {
+    if ( '' === line.trim() ) return; // blank line, eg at end of file
+    matches = line.match(/^(\S+)\s+(\d+)\s+(\d+)\s+(.+)$/);
+    if (! matches) return err( new Error('‘' + report + '’ unparsable Bitmap line ' + i + ':\n  ' + line) );
+    out.push({
+        report:      report
+      , bitmap:      matches[1]
+      , compressed:  matches[2]
+      , original:    matches[3]
+      , compression: matches[4]
+    });
+  });
+  return out;
+}
 
-
-//// BUNDLED NPM MODULES
-!function(){ // inside closure
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}(); // end closure
 
 
 
@@ -209,10 +197,10 @@ chain.push(function getCourseSlug () {
     //// Generate the path for the finished SCORM content. 
     SCORMContentPath = path.resolve(SCORMPackagePath, courseSlug + '_' + timeStamp);
 
-    //// Continue to the next step. 
-    chain[step++]();
-
   } catch (e) { err(e); }
+
+  //// Continue to the next step. 
+  chain[step++]();
 });
 
 
@@ -242,10 +230,10 @@ chain.push(function processCourseTitle (e, result) { // args from `readFile()` i
       +'It must contain the course title on a line starting ‘# ’, for example:\n\n  '
       +'# 2016 2Q Sustainment - Independent Contractors - Bulk\n');
 
-    //// Continue to the next step. 
-    chain[step++]();
-
   } catch (e) { err(e); }
+
+  //// Continue to the next step. 
+  chain[step++]();
 });
 
 
@@ -274,10 +262,10 @@ chain.push(function processWorkingDir (e, result) { // args from `readdir()` in 
     });
     if (! workingDirTally) throw Error('There are no directories in ‘Working FLAs’');
 
-    //// Continue to the next step. 
-    chain[step++]();
-
   } catch (e) { err(e); }
+
+  //// Continue to the next step. 
+  chain[step++]();
 });
 
 
@@ -324,15 +312,45 @@ chain.push(function processSWFsDir (e, result) { // args from `readdir()` in `re
 
     //// Show a quick summary. 
     log('‘' + courseTitle + '’ has '
-      + swfs.length    + ' swf'    + (1==swfs.length?'':'s') + ' and '
-      + reports.length + ' report' + (1==reports.length?'':'s') + '.\n  '
+      + swfs.length    + ' swf'    + (1==swfs.length?'':'s') + '.\n  '
       + 'Generating ‘SCORM Package/' + courseSlug + '_' + timeStamp + '/’...'
     );
 
-    //// Continue to the next step. 
-    chain[step++]();
-
   } catch(e) { err(e); }
+
+  //// Continue to the next step. 
+  chain[step++]();
+});
+
+
+
+chain.push(function parseReports () {
+  try {
+
+    //// Enforce one report per swf. 
+    if (reports.length != swfs.length) throw Error(
+        (1==swfs.length?'There’s ':'There are ')
+      + swfs.length    + ' swf'    + (1==swfs.length?'':'s') + ' but '
+      + reports.length + ' report' + (1==reports.length?'':'s')
+    );
+
+    //// Parse each report. 
+    reports.forEach( function (report) {
+      var swf, data, reportPath;
+      if ('interface Report.txt' == report) { return; } // ignore this special file
+      swf = report.substr(0,report.length-11) + '.swf'; // all reports end ' Report.txt'
+      if (! swfToTitle[swf]) throw Error('Report ‘' + report + '’ has no SWF.\n  '
+        + 'Expecting a swf named ‘' + swf + '’'
+      );
+      reportPath = path.resolve(__dirname, '..', 'SWFs', report);
+      data = parseReport( report, fs.readFileSync(reportPath) );
+      log(data);
+    });
+
+  } catch (e) { err(e); }
+
+  //// Continue to the next step. 
+  chain[step++]();
 });
 
 
