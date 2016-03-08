@@ -1,4 +1,4 @@
-//// scormgen-swf v0.0.7
+//// scormgen-swf v0.0.8
 //// ===================
 
 //// Usage:
@@ -5599,12 +5599,76 @@ chain.push(function moveTmpDirToSCORMPackage () {
 
 
 
+chain.push(function createTestHTML () {
+  fs.writeFile( path.resolve(__dirname, '..', 'SCORM Package', 'test.html'),
+
+ '<!DOCTYPE html>\n'
++'<html lang="en">\n'
++'<head>\n'
++'  <meta charset="utf-8">\n'
++'  <title>' + courseTitle + '</title>\n'
++'  <style>\n'
++'    html, body { margin:0; height:100%; }\n'
++'    iframe { width:100%; height:100%; border-width:0; }\n'
++'  </style>\n'
++'  <script>\n'
++'    !function () {\n'
++'      var\n'
++'          currentICU    = undefined\n'
++'        , nextDirection = undefined\n'
++'        , lmsNavigated  = false\n'
++'        , _Initialize = function() { return true; }\n'
++'        , _Terminate  = function() {\n'
++'            if (lmsNavigated == true) { nextDirection = \'\'; lmsNavigated = false; }\n'
++'            frames[\'content\'].location.href = \'javascript:"<body bgcolor=black>"\';\n'
++'            NavigateToNextICU();\n'
++'            return true; \n'
++'          }\n'
++'        , _GetValue = function(name) { return \'\'; }\n'
++'        , _SetValue = function(name, value) {\n'
++'            if (name == \'adl.nav.request\') { nextDirection = value; }\n'
++'            return true;\n'
++'          }\n'
++'        , _Commit         = function() { return true; }\n'
++'        , _GetLastError   = function() { return \'\'; }\n'
++'        , _GetErrorString = function(ErrorCodeNum) { return \'\'; }\n'
++'        , _GetDiagnostic  = function(ErrorCodeNum) { return \'\'; }\n'
++'      ;\n'
++'      window.API = {\n'
++'          LMSInitialize    :function()              { return _Initialize(); }\n'
++'        , LMSFinish        :function()              { return _Terminate(); }\n'
++'        , LMSGetValue      :function( name)         { return _GetValue(name); }\n'
++'        , LMSSetValue      :function( name, value)  { return _SetValue( name, value); }\n'
++'        , LMSCommit        :function()              { return _Commit(); }\n'
++'        , LMSGetLastError  :function()              { return _GetLastError(); }\n'
++'        , LMSGetErrorString:function( ErrorCodeNum) { return _GetErrorString( ErrorCodeNum ); }\n'
++'        , LMSGetDiagnostic :function( ErrorCodeNum) { return _GetDiagnostic( ErrorCodeNum); }\n'
++'      }\n'
++'    }()\n'
++'  </script>\n'
++'</head>\n'
++'<body>\n'
++'\n'
++'  <iframe src="' + courseSlug + '_' + timeStamp + '/ICU_' + contentUuid + '/index.html"></iframe>\n'
++'\n'
++'</body>\n'
++'</html>\n'
++''
+
+  , function (e) { if(e){return err(e)} chain[step++]() });
+
+});
+
+
+
 chain.push(function zipSCORMContent () {
   ziplocal.zip(SCORMContentPath, function(zipped) {
       zipped.compress(); // compress before exporting 
       zipped.save(SCORMContentPath + '.zip', chain[step++]); // save the zipped file to disk 
   });
 });
+
+
 
 chain.push(function tarGzSCORMContent () {
   var reader = fstream.Reader({
@@ -5654,7 +5718,7 @@ chain.push(function deleteZeroByteTarGz () {
 
 
 chain.push(function displayZipSize () {
-  var color = 2000000 < zipSize ? '\033[31m' : '';
+  var color = 20000000 < zipSize ? '\033[31m' : '';
   log('.zip size:    ' + color + (zipSize / 1000000.0) + ' MB\033[0m');
   chain[step++]();
 });
@@ -5662,7 +5726,7 @@ chain.push(function displayZipSize () {
 
 
 chain.push(function displayTarGzSize () {
-  var color = 2000000 < tarGzSize ? '\033[31m' : '';
+  var color = 20000000 < tarGzSize ? '\033[31m' : '';
   log('.tar.gz size: ' + color + (tarGzSize / 1000000.0) + ' MB\033[0m');
   chain[step++]();
 });
