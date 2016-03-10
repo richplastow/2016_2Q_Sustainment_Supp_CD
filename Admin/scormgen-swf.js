@@ -1,5 +1,5 @@
-//// scormgen-swf v0.0.9
-//// ===================
+//// scormgen-swf v0.0.11
+//// ====================
 
 //// Usage:
 //// $ node [your path here]/Admin/scormgen-swf.js
@@ -153,6 +153,7 @@ function parseReport(report, buffer) {
     , raw = buffer.toString('utf-8')
     , pos = raw.indexOf('\n\nBitmap ')
     , lines
+    , i, l, line
     , matches
   ;
   if (0 > pos) return err( new Error('‘' + report + '’ has no ‘Bitmap’ section') );
@@ -161,9 +162,10 @@ function parseReport(report, buffer) {
   if (! /^-+    -+    -+    -+$/.test(lines.shift()) ) return err(
     new Error('‘' + report + '’ has an unexpected text after ‘Bitmap’')
   ); // remove second line, "-------------    ------    -----    -------------"
-  lines.forEach( function (line,i) {
-    if ( '' === line.trim() ) return; // blank line, eg at end of file
-    matches = line.match(/^(\S+)\s+(\d+)\s+(\d+)\s+(.+)$/);
+  for (i=0,l=lines.length;i<l;i++) {
+    line = lines[i];
+    if ( '' === line.trim() ) break; // blank line at end of file, or before video section
+    matches = line.match(/^([- \w]+\.[a-z]+)\s+(\d+)\s+(\d+)\s+(.+)$/);
     if (! matches) return err( new Error('‘' + report + '’ unparsable Bitmap line ' + i + ':\n  ' + line) );
     out.push({
         report:      report
@@ -172,7 +174,8 @@ function parseReport(report, buffer) {
       , original:    matches[3]
       , compression: matches[4]
     });
-  });
+  }
+  if ( /^Video\s+Compressed$/.test(line) ) log('@todo add video to results'); // some have a ‘video’ section
   return out;
 }
 
@@ -195,7 +198,7 @@ chain.push(function getCourseSlug () {
     );
 
     //// Generate the path for the finished SCORM content. 
-    SCORMContentPath = path.resolve(SCORMPackagePath, courseSlug + '_' + timeStamp);
+    SCORMContentPath = path.resolve(SCORMPackagePath, courseSlug + '_swf_' + timeStamp);
 
   } catch (e) { err(e); }
 
@@ -251,11 +254,12 @@ chain.push(function processWorkingDir (e, result) { // args from `readdir()` in 
     var workingDirTally = 0;
     result.forEach( function (item) {
       if ( '.' == item.substr(0,1) ) return; // ignore invisibles
-      var match = item.match(/^(\d+(\.\d+)?)\.?\s+([- a-z0-9]+)$/i);
+      var match = item.match(/^(\d+(\.\d+)?)\.?\s+([- ,.a-z0-9]+)$/i);
       if (! match) throw Error('‘'+item+'’ is an invalid directory name.\n  '
         +'Names of directories in ‘Working FLAs’ must begin with a number (plus\n  '
         +'optional trailing dot). Next comes a space. Next comes the title,\n  '
-        +'containing letters (upper or lowercase), digits, hyphens and spaces.'
+        +'containing letters (upper or lowercase), digits, hyphens, commas, \n  '
+        +'dots and spaces.'
       );
       titles[ +match[1] ] = match[3];
       workingDirTally++;
@@ -313,7 +317,7 @@ chain.push(function processSWFsDir (e, result) { // args from `readdir()` in `re
     //// Show a quick summary. 
     log('‘' + courseTitle + '’ has '
       + swfs.length    + ' swf'    + (1==swfs.length?'':'s') + '.\n  '
-      + 'Generating ‘SCORM Package/' + courseSlug + '_' + timeStamp + '/’...'
+      + 'Generating ‘SCORM Package/' + courseSlug + '_swf_' + timeStamp + '/’...'
     );
 
   } catch(e) { err(e); }
@@ -5607,7 +5611,7 @@ chain.push(function clearSCORMPackage () {
 chain.push(function moveTmpDirToSCORMPackage () {
   fs.rename(
       tmp
-    , path.resolve(__dirname, '..', 'SCORM Package', courseSlug + '_' + timeStamp)
+    , path.resolve(__dirname, '..', 'SCORM Package', courseSlug + '_swf_' + timeStamp)
     , function (e) {
         if(e) { return err(e); }
         chain[step++]();
@@ -5618,7 +5622,7 @@ chain.push(function moveTmpDirToSCORMPackage () {
 
 
 chain.push(function createTestHTML () {
-  fs.writeFile( path.resolve(__dirname, '..', 'SCORM Package', 'test.html'),
+  fs.writeFile( path.resolve(__dirname, '..', 'SCORM Package', 'test-swf.html'),
 
  '<!DOCTYPE html>\n'
 +'<html lang="en">\n'
@@ -5667,7 +5671,7 @@ chain.push(function createTestHTML () {
 +'</head>\n'
 +'<body>\n'
 +'\n'
-+'  <iframe src="' + courseSlug + '_' + timeStamp + '/ICU_' + contentUuid + '/index.html"></iframe>\n'
++'  <iframe src="' + courseSlug + '_swf_' + timeStamp + '/ICU_' + contentUuid + '/index.html"></iframe>\n'
 +'\n'
 +'</body>\n'
 +'</html>\n'
