@@ -1,4 +1,4 @@
-//// scormgen-swf v0.0.11
+//// scormgen-swf v0.0.12
 //// ====================
 
 //// Usage:
@@ -25,8 +25,9 @@ var
   , swfs       = []
   , swfToTitle = {}
   , uuids      = [] // one for each swf
-  , reports    = []
-  , reportData = {}
+  , reportFilenames = []
+  , reportResults   = {}
+  , reportsBySize   = []
   , tmp = path.resolve( __dirname, 
       'scormgen-swf~tmp'+(Math.random()+'00000000').substr(2,8) )
   , SCORMPackagePath = path.resolve(__dirname, '..', 'SCORM Package')
@@ -286,11 +287,11 @@ chain.push(function processSWFsDir (e, result) { // args from `readdir()` in `re
       'The ‘Admin’ directory must be placed alongside a ‘SWFs’ directory');
     if (e) return err(e);
 
-    //// Fill the `swfs` and `reports` array, and error-check the swf filenames.
+    //// Fill the `swfs` and `reportFilenames` array, and error-check the swf filenames.
     var hasInterfaceSwf = hasWelcomePng = false;
     result.forEach( function (item) {
       if ( '.swf'        == item.substr(-4) )  swfs.push(item);
-      if ( ' Report.txt' == item.substr(-11) ) reports.push(item);
+      if ( ' Report.txt' == item.substr(-11) ) reportFilenames.push(item);
       if ( 'interface.swf' == item) hasInterfaceSwf = true;
       if ( 'welcome.png'   == item) hasWelcomePng   = true;
     });
@@ -332,28 +333,83 @@ chain.push(function parseReports () {
   try {
 
     //// Enforce one report per swf. 
-    if (reports.length != swfs.length) throw Error(
+    if (reportFilenames.length != swfs.length) throw Error(
         (1==swfs.length?'There’s ':'There are ')
-      + swfs.length    + ' swf'    + (1==swfs.length?'':'s') + ' but '
-      + reports.length + ' report' + (1==reports.length?'':'s')
+      + swfs.length            + ' swf'    + (1==swfs.length?'':'s') + ' but '
+      + reportFilenames.length + ' report' + (1==reportFilenames.length?'':'s')
     );
 
     //// Parse each report. 
-    reports.forEach( function (report) {
-      var swf, data, reportPath;
-      if ('interface Report.txt' == report) { return; } // ignore this special file
-      swf = report.substr(0,report.length-11) + '.swf'; // all reports end ' Report.txt'
-      if (! swfToTitle[swf]) throw Error('Report ‘' + report + '’ has no SWF.\n  '
+    reportFilenames.forEach( function (filename) {
+      var swf, data, reportPath, id;
+      if ('interface Report.txt' == filename) { return; } // ignore this special file
+      swf = filename.substr(0,filename.length-11) + '.swf'; // all report filenames end ' Report.txt'
+      if (! swfToTitle[swf]) throw Error('Report ‘' + filename + '’ has no SWF.\n  '
         + 'Expecting a swf named ‘' + swf + '’'
       );
-      reportPath = path.resolve(__dirname, '..', 'SWFs', report);
-      data = parseReport( report, fs.readFileSync(reportPath) );
-      log(data);
+      reportPath = path.resolve(__dirname, '..', 'SWFs', filename);
+      parseReport( filename, fs.readFileSync(reportPath) ).forEach( function (meta) {
+        id = meta.compressed + '_' + generateUuid();
+        id = (Array(50-id.length).join('0') ) + id;
+        reportResults[id] = meta;
+        reportsBySize.push(id);
+      });
     });
+
+    //// Sort reports in order of compressed-size. 
+    reportsBySize.sort().reverse();
+
 
   } catch (e) { err(e); }
 
   //// Continue to the next step. 
+  chain[step++]();
+});
+
+
+
+chain.push(function displayBiggestBitmaps () {
+  var i, l, id, meta, pc,    comp  ,    orig  ,    cmpssn  ,    bitmap  ,    report
+    ,                     maxcomp=0, maxorig=0, maxcmpssn=0, maxbitmap=0, maxreport=0
+    , out = []
+  ;
+
+  //// Get column widths. 
+  for (i=0,l=10; i<l; i++) {
+    id = reportsBySize[i];
+    if (!id) break; // too few bitmaps found
+    meta = reportResults[ reportsBySize[i] ];
+    maxcomp   = Math.max(maxcomp,   (meta.compressed+'').length );
+    maxorig   = Math.max(maxorig,   (meta.original+'').length );
+    maxcmpssn = Math.max(maxcmpssn, (meta.compression+'').length );
+    maxbitmap = Math.max(maxbitmap, (meta.bitmap+'').length );
+    maxreport = Math.max(maxreport, (meta.report+'').length );
+  }
+  
+  for (i=0,l=20; i<l; i++) {
+    id = reportsBySize[i];
+    if (!id) break; // too few bitmaps found
+    meta = reportResults[ reportsBySize[i] ];
+    pc = ( Math.round(meta.compressed / meta.original * 10000) / 100 );
+    if (10 > pc) pc = ' ' + pc;
+    pc += '%';
+    pc = pc + (5 === pc.length ? ' '   : '');
+    pc = pc + (3 === pc.length ? '   ' : '');
+    comp = meta.compressed;
+    comp = (Array(maxcomp-comp.length+2).join(' ') ) + comp + '  ';
+    orig = meta.original;
+    orig = (Array(maxorig-orig.length+2).join(' ') ) + orig + '   ';
+    cmpssn = meta.compression;
+    cmpssn = cmpssn + (Array(maxcmpssn-cmpssn.length+3).join(' ') ) + ' ';
+    bitmap = meta.bitmap;
+    bitmap = bitmap + (Array(maxbitmap-bitmap.length+3).join(' ') );
+    report = meta.report;
+    report = report.substr(0,report.length-11) + '.swf' + (Array(maxreport-report.length+2).join(' ') );
+    out.push( comp + pc + ' of' + orig + cmpssn + bitmap + report );
+    // log(meta);
+  }
+  log( out.join('\n  ') );
+
   chain[step++]();
 });
 
