@@ -1,4 +1,4 @@
-//// scormgen-swf v0.0.12
+//// scormgen-swf v0.0.13
 //// ====================
 
 //// Usage:
@@ -224,7 +224,7 @@ chain.push(function processCourseTitle (e, result) { // args from `readFile()` i
     result = (result+'').replace(/\r/, '\n').split('\n'); 
     var line, match, i=0;
     while ( 'string' == typeof (line = result[i++]) ) { // will be undefined after last line
-      match = line.match(/^#\s+(\w[ \w]+)/);
+      match = line.match(/^#\s+(\S.+)/);
       if (match) {
         courseTitle = match[1].trim();
         break;
