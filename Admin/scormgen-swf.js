@@ -1,5 +1,5 @@
-//// scormgen-swf v0.0.13
-//// ====================
+//// scormgen-swf v0.1.1
+//// ===================
 
 //// Usage:
 //// $ node [your path here]/Admin/scormgen-swf.js
